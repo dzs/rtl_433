@@ -678,7 +678,7 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
     int8_t tempf; // Raw Temp is 8 bit signed Fahrenheit
     float tempc;
     uint16_t sensor_id, valid_cnt = 0;
-    char sensor_type;
+    char *sensor_type;
 
     local_time_str(0, time_str);
 
@@ -688,6 +688,8 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
     }
 
     for (uint16_t brow = 0; brow < bitbuf->num_rows; ++brow) {
+	data_t *data;
+
 	browlen = (bitbuf->bits_per_row[brow] + 7)/8;
 	bb = bitbuf->bb[brow];
 
@@ -730,7 +732,7 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 	sensor_num = (status & 0x01) + 1;
 	status = status >> 1;
 	// By default Sensor 1 is the Freezer, 2 Refrigerator
-	sensor_type = sensor_num == 2 ? 'F' : 'R';
+	sensor_type = sensor_num == 2 ? "F" : "R";
 	crc = br[4];
 
 	if ((crcc = crc8le(br, 5, 0x07, 0)) != 0) {
@@ -745,14 +747,9 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 	    continue;
 	}
 
-	if ((status & 1) == 1) {
-	    fprintf(stderr, "%s Acurite 986 sensor 0x%04x - %d%c: low battery, status %02x\n",
-		    time_str, sensor_id, sensor_num, sensor_type, status);
-	}
-
 	// catch any status bits that haven't been decoded yet
 	if ((status & 0xFE) != 0) {
-	    fprintf(stderr, "%s Acurite 986 sensor 0x%04x - %d%c: Unexpected status %02x\n",
+	    fprintf(stderr, "%s Acurite 986 sensor 0x%04x - %d%s: Unexpected status %02x\n",
 		    time_str, sensor_id, sensor_num, sensor_type, status);
 	}
 
@@ -761,10 +758,16 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 	}
 	tempc = fahrenheit2celsius(tempf);
 
-
-	printf("%s Acurite 986 sensor 0x%04x - %d%c: %3.1f C %d F\n",
-	       time_str, sensor_id, sensor_num, sensor_type,
-	       tempc, tempf);
+	data = data_make("time", "",    DATA_STRING, time_str,
+	    "model",         "",        DATA_STRING, "Acurite 986",
+	    "sensor_id",     "Sensor",  DATA_FORMAT, "%04x", DATA_INT, sensor_id,
+	    "sensor_num",    "Number",  DATA_INT, sensor_num,
+	    "sensor_type",   "Type",    DATA_STRING, sensor_type,
+	    "battery",       "Battery", DATA_STRING, (status & 1) == 1 ? "LOW" : "OK",
+	    "temperature_F", "Temperature", DATA_FORMAT, "%d F", DATA_INT, tempf,
+	    "temperature_C", "Temperature", DATA_FORMAT, "%.1f C", DATA_DOUBLE, tempc,
+	    NULL);
+	data_acquired_handler(data);
 
 	valid_cnt++;
 
