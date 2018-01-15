@@ -760,8 +760,8 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 
 	data = data_make("time", "",    DATA_STRING, time_str,
 	    "model",         "",        DATA_STRING, "Acurite 986",
-	    "sensor_id",     "Sensor",  DATA_FORMAT, "%04x", DATA_INT, sensor_id,
-	    "sensor_num",    "Number",  DATA_INT, sensor_num,
+	    "device",        "Device",  DATA_FORMAT, "%04x", DATA_INT, sensor_id,
+	    "channel",       "Channel", DATA_INT, sensor_num,
 	    "sensor_type",   "Type",    DATA_STRING, sensor_type,
 	    "battery",       "Battery", DATA_STRING, (status & 1) == 1 ? "LOW" : "OK",
 	    "temperature_F", "Temperature", DATA_FORMAT, "%d F", DATA_INT, tempf,
