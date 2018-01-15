@@ -676,7 +676,6 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
     uint8_t *bb, sensor_num, status, crc, crcc;
     uint8_t br[8];
     int8_t tempf; // Raw Temp is 8 bit signed Fahrenheit
-    float tempc;
     uint16_t sensor_id, valid_cnt = 0;
     char *sensor_type;
 
@@ -756,7 +755,6 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 	if (tempf & 0x80) {
 	    tempf = (tempf & 0x7f) * -1;
 	}
-	tempc = fahrenheit2celsius(tempf);
 
 	data = data_make("time", "",    DATA_STRING, time_str,
 	    "model",         "",        DATA_STRING, "Acurite 986",
@@ -765,7 +763,6 @@ static int acurite_986_callback(bitbuffer_t *bitbuf) {
 	    "sensor_type",   "Type",    DATA_STRING, sensor_type,
 	    "battery",       "Battery", DATA_STRING, (status & 1) == 1 ? "LOW" : "OK",
 	    "temperature_F", "Temperature", DATA_FORMAT, "%d F", DATA_INT, tempf,
-	    "temperature_C", "Temperature", DATA_FORMAT, "%.1f C", DATA_DOUBLE, tempc,
 	    NULL);
 	data_acquired_handler(data);
 
