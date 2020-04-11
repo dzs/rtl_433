@@ -30,6 +30,9 @@
 #include <SoapySDR/Formats.h>
 #include <SoapySDR/Logger.h>
 #endif
+// hack for FreeBSD
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #ifndef _MSC_VER
 #include <unistd.h>

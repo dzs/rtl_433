@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <limits.h>
+// hack for FreeBSD
+#include <sys/types.h>
+#include <sys/socket.h>
 // gethostname() needs _XOPEN_SOURCE 500 on unistd.h
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 500
