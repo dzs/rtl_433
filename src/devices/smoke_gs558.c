@@ -38,20 +38,11 @@
  * (at your option) any later version.
  */
 
-#include "rtl_433.h"
-#include "data.h"
-#include "util.h"
+#include "decoder.h"
 
-static unsigned char reverse_byte(unsigned char b) {
-    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-    b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-    b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-    return b;
-}
-
-static int smoke_gs558_callback(bitbuffer_t *bitbuffer) {
+static int smoke_gs558_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     data_t *data;
-    char time_str[LOCAL_TIME_BUFLEN];
     uint8_t *b;
     int r;
     int learn = 0;
@@ -60,7 +51,7 @@ static int smoke_gs558_callback(bitbuffer_t *bitbuffer) {
     char code_str[7];
 
     if (bitbuffer->num_rows < 3)
-        return 0; // truncated transmission
+        return DECODE_ABORT_EARLY; // truncated transmission
 
     bitbuffer_invert(bitbuffer);
 
@@ -83,42 +74,38 @@ static int smoke_gs558_callback(bitbuffer_t *bitbuffer) {
     r = bitbuffer_find_repeated_row(bitbuffer, 3, 24);
 
     if (r < 0)
-        return 0;
+        return DECODE_ABORT_EARLY;
 
     b = bitbuffer->bb[r];
 
     // if ((b[2] & 0x0f) != 0x03)
-    //     return 0; // last nibble is always 0x3?
+    //     return DECODE_ABORT_EARLY; // last nibble is always 0x3?
 
-    b[0] = reverse_byte(b[0]);
-    b[1] = reverse_byte(b[1]);
-    b[2] = reverse_byte(b[2]);
+    b[0] = reverse8(b[0]);
+    b[1] = reverse8(b[1]);
+    b[2] = reverse8(b[2]);
 
     unit = b[0] & 0x1f; // 5 bits
     id = ((b[2] & 0x0f) << 11) | (b[1] << 3) | (b[0] >> 5); // 15 bits
 
     if (id == 0 || id == 0x7fff)
-         return 0; // reject min/max to reduce false positives
+         return DECODE_FAIL_SANITY; // reject min/max to reduce false positives
 
     sprintf(code_str, "%02x%02x%02x", b[2], b[1], b[0]);
 
-    /* Get time now */
-    local_time_str(0, time_str);
     data = data_make(
-        "time",          "",            DATA_STRING, time_str,
-        "model",         "",            DATA_STRING, "Smoke detector GS 558",
+        "model",         "",            DATA_STRING, _X("Smoke-GS558","Smoke detector GS 558"),
         "id"   ,         "",            DATA_INT, id,
         "unit",          "",            DATA_INT, unit,
         "learn",         "",            DATA_INT, learn > 1,
         "code",          "Raw Code",    DATA_STRING, code_str,
         NULL);
-    data_acquired_handler(data);
+    decoder_output_data(decoder, data);
 
     return 1;
 }
 
 static char *output_fields[] = {
-    "time",
     "model",
     "id",
     "unit",
@@ -129,12 +116,12 @@ static char *output_fields[] = {
 
 r_device smoke_gs558 = {
     .name           = "Wireless Smoke and Heat Detector GS 558",
-    .modulation     = OOK_PULSE_PWM_RAW,
-    .short_limit    = (436+1202)/2, // Threshold between short and long pulse [us]
-    .long_limit     = 1299*1.5, // Maximum gap size before new row of bits [us]
-    .reset_limit    = 11764*1.5, // Maximum gap size before End Of Message [us]
-    .json_callback  = &smoke_gs558_callback,
+    .modulation     = OOK_PULSE_PWM,
+    .short_width    = 436, // Threshold between short and long pulse [us]
+    .long_width     = 1202, // Maximum gap size before new row of bits [us]
+    .gap_limit      = 1299 * 1.5f, // Maximum gap size before new row of bits [us]
+    .reset_limit    = 11764 * 1.2f, // Maximum gap size before End Of Message [us]
+    .decode_fn      = &smoke_gs558_callback,
     .disabled       = 0,
-    .demod_arg      = 0,
     .fields         = output_fields
 };
